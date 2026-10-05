@@ -6,3 +6,5 @@ if(!url) throw new Error("Set DATABASE_URL in .env");
 
 const client = postgres(url, { prepare: false });
 export const db = drizzle({ client });
+
+console.log(process.env.DATABASE_URL?.replace(/:([^:@]+)@/, ":***@"));
