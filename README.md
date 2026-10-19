@@ -1,36 +1,49 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Tindahan Ledger API
 
-## Getting Started
+Version: **1.0.0**
 
-First, run the development server:
+The API uses the same Supabase Auth project and Postgres database as the web app and phone app. Send `Authorization: Bearer <access-token>` from the phone client. Browser requests can use the Supabase session cookie. Roles are read from the `profiles` table; new accounts receive the `client` role.
 
-```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+Base URL: `http://localhost:3000`
+
+| Method | Path | Access | Success | Other responses |
+| --- | --- | --- | --- | --- |
+| GET | `/api/me` | Signed in | `200` profile JSON | `401` unauthenticated |
+| GET | `/api/customers` | Signed in | `200` customer array | `401` unauthenticated |
+| POST | `/api/customers` | Admin | `201` created customer | `400` invalid JSON/body, `401` unauthenticated, `403` client |
+| GET | `/api/customers/{id}` | Signed in | `200` customer | `401` unauthenticated, `404` missing customer |
+| GET | `/api/customers/{id}/entries` | Signed in | `200` entries array | `401` unauthenticated, `404` missing customer |
+| POST | `/api/customers/{id}/entries` | Admin | `201` created entry | `400` invalid body or payment exceeds balance, `401` unauthenticated, `403` client, `404` missing customer |
+
+## Request bodies
+
+Create a customer:
+
+```json
+{ "name": "Aling Nena", "balance": 340.00 }
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Record a due or a payment:
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+```json
+{ "kind": "due", "amount": 50.00 }
+```
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+`kind` is `due` or `payment`. Amounts must be positive. A due increases the balance; a payment decreases it and cannot exceed the current balance. Each accepted operation creates an immutable history row and updates the balance in one database transaction.
 
-## Learn More
+## Local setup
 
-To learn more about Next.js, take a look at the following resources:
+Copy `.env.example` to `.env` and fill in the Supabase URL, publishable key, and database URL. In Supabase, disable email confirmation for the class demo and create your account. After signing in once, promote your instructor-designated admin account in the SQL Editor (replace the address):
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+```sql
+update public.profiles set role = 'admin' where email = 'your-admin@example.com';
+```
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+Then apply the schema with:
 
-## Deploy on Vercel
+```sh
+npx drizzle-kit push
+npm run dev
+```
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+Do not commit `.env`. New sign-ups are always clients; promote only the intended admin directly in the database.
