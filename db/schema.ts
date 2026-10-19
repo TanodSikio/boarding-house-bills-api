@@ -1,4 +1,4 @@
-import { numeric, pgTable, text, uniqueIndex, uuid } from "drizzle-orm/pg-core";
+import { numeric, pgTable, text, timestamp, uniqueIndex, uuid } from "drizzle-orm/pg-core";
 import { sql } from "drizzle-orm";
 
 export const customers = pgTable("customers", {
@@ -15,3 +15,11 @@ export const profiles = pgTable("profiles", {
 }, (table) => [
     uniqueIndex("profiles_one_admin").on(table.role).where(sql`${table.role} = 'admin'`),
 ]).enableRLS();
+
+export const entries = pgTable("entries", {
+    id: uuid("id").primaryKey().defaultRandom(),
+    customerId: text("customer_id").notNull().references(() => customers.id, { onDelete: "cascade" }),
+    kind: text("kind").notNull(),
+    amount: numeric("amount", { precision: 10, scale: 2, mode: "number" }).notNull(),
+    createdAt: timestamp("created_at").notNull().defaultNow(),
+}).enableRLS();

@@ -1,3 +1,4 @@
+import "server-only";
 import { createClient } from "@/lib/supabase/server";
 import { eq } from "drizzle-orm";
 import { db } from "@/db/index";
@@ -8,13 +9,15 @@ import { redirect } from "next/navigation";
 export type Profile = typeof profiles.$inferSelect;
 
 export async function getProfile(request?: Request): Promise<Profile | null> {
-    const token = request?.headers.get("Authorization")?.replace("Bearer ", "");
+    const authorization = request?.headers.get("Authorization");
+    const token = authorization?.match(/^Bearer\s+(.+)$/i)?.[1];
+    if (authorization && !token) return null;
     const supabase = await createClient();
 
-    const { data } = await supabase.auth.getClaims(token).catch(() => ({ data: null}));
-    if(!data) return null;
+    const { data } = await supabase.auth.getClaims(token).catch(() => ({ data: null }));
+    if (!data?.claims) return null;
 
-    const { sub: id, email = ""} = data.claims;
+    const { sub: id, email = "" } = data.claims;
     await db.insert(profiles).values({ id, email }).onConflictDoNothing();
     const [profile] = await db.select().from(profiles).where(eq(profiles.id, id));
     return profile;
